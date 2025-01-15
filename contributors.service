@@ -1,0 +1,11 @@
+[Unit]
+Description=contributors service
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/home/contributors-service/target/release/contributors-service
+StandardOutput=journal
+
+[Install]
+WantedBy=multi-user.target
