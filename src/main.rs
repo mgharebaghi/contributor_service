@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{SubsecRound, Utc};
 use futures::StreamExt;
 use mongodb::{
     bson::{doc, Document},
@@ -13,8 +13,8 @@ use std::error::Error;
 struct Contributor {
     wallet: String,
     node_type: String,
-    join_date: DateTime<Utc>,
-    deactive_date: Option<DateTime<Utc>>,
+    join_date: String,
+    deactive_date: Option<String>,
 }
 
 struct MongoDBWatcher {
@@ -40,25 +40,22 @@ impl MongoDBWatcher {
         let contributors_coll: Collection<Contributor> =
             self.centiweb_db.collection("contributors");
 
-        match change.operation_type.as_str() {
-            "insert" => {
+        match change.operation_type {
+            mongodb::change_stream::event::OperationType::Insert => {
                 if let Some(doc) = change.full_document {
-                    let wallet = doc
-                        .get_str("wallet")
-                        .unwrap_or_default()
-                        .to_string();
+                    let wallet = doc.get_str("wallet").unwrap_or_default().to_string();
 
                     let new_contributor = Contributor {
                         wallet,
                         node_type: "validator".to_string(),
-                        join_date: Utc::now(),
+                        join_date: Utc::now().round_subsecs(0).to_string(),
                         deactive_date: None,
                     };
 
-                    contributors_coll.insert_one(new_contributor, None).await?;
+                    contributors_coll.insert_one(new_contributor).await?;
                 }
             }
-            "delete" => {
+            mongodb::change_stream::event::OperationType::Delete => {
                 if let Some(doc_key) = change.document_key {
                     if let Ok(wallet) = doc_key.get_str("wallet") {
                         contributors_coll
@@ -68,9 +65,8 @@ impl MongoDBWatcher {
                                     "node_type": "validator"
                                 },
                                 doc! {
-                                    "$set": { "deactive_date": Utc::now() }
+                                    "$set": { "deactive_date": Utc::now().round_subsecs(0).to_string() }
                                 },
-                                None,
                             )
                             .await?;
                     }
@@ -89,25 +85,22 @@ impl MongoDBWatcher {
         let contributors_coll: Collection<Contributor> =
             self.centiweb_db.collection("contributors");
 
-        match change.operation_type.as_str() {
-            "insert" => {
+        match change.operation_type {
+            mongodb::change_stream::event::OperationType::Insert => {
                 if let Some(doc) = change.full_document {
-                    let wallet = doc
-                        .get_str("wallet")
-                        .unwrap_or_default()
-                        .to_string();
+                    let wallet = doc.get_str("wallet").unwrap_or_default().to_string();
 
                     let new_contributor = Contributor {
                         wallet,
                         node_type: "relay".to_string(),
-                        join_date: Utc::now(),
+                        join_date: Utc::now().round_subsecs(0).to_string(),
                         deactive_date: None,
                     };
 
-                    contributors_coll.insert_one(new_contributor, None).await?;
+                    contributors_coll.insert_one(new_contributor).await?;
                 }
             }
-            "delete" => {
+            mongodb::change_stream::event::OperationType::Delete => {
                 if let Some(doc_key) = change.document_key {
                     if let Ok(wallet) = doc_key.get_str("wallet") {
                         contributors_coll
@@ -117,9 +110,8 @@ impl MongoDBWatcher {
                                     "node_type": "relay"
                                 },
                                 doc! {
-                                    "$set": { "deactive_date": Utc::now() }
+                                    "$set": { "deactive_date": Utc::now().round_subsecs(0).to_string() }
                                 },
-                                None,
                             )
                             .await?;
                     }
@@ -139,8 +131,11 @@ impl MongoDBWatcher {
             .full_document(Some(mongodb::options::FullDocumentType::UpdateLookup))
             .build();
 
-        let mut validators_stream = validators_coll.watch(None, options.clone()).await?;
-        let mut relays_stream = relays_coll.watch(None, options).await?;
+        let mut validators_stream = validators_coll
+            .watch()
+            .with_options(options.clone())
+            .await?;
+        let mut relays_stream = relays_coll.watch().with_options(options).await?;
 
         loop {
             tokio::select! {
