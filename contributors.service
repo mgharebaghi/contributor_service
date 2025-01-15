@@ -4,7 +4,7 @@ After=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/home/contributors-service/target/release/contributors-service
+ExecStart=/home/contributor-service/target/release/contributors-service
 StandardOutput=journal
 
 [Install]
