@@ -4,6 +4,8 @@ After=network-online.target
 
 [Service]
 Type=simple
+User=ubuntu
+WorkingDirectory=/home/contributor-service
 ExecStart=/home/contributor-service/target/release/contributor-service
 StandardOutput=journal
 
