@@ -60,25 +60,22 @@ impl MongoDBWatcher {
             }
             mongodb::change_stream::event::OperationType::Delete => {
                 println!("Delete operation");
-                // For delete operations, we need to use pre_image to get the deleted document
-                if let Some(pre_image) = change.full_document_before_change {
-                    let peer_id = pre_image.get_str("peerid").unwrap_or_default();
-                    println!("peer_id deleted: {}", peer_id);
-                    let current_time = Utc::now().round_subsecs(0).to_string();
-                    let update_result = contributors_coll
-                        .update_one(
-                            doc! {"peer_id": peer_id},
-                            doc! {
-                                "$set": { "deactive_date": current_time }
-                            },
-                        )
-                        .await?;
-
-                    if update_result.modified_count == 0 {
-                        eprintln!(
-                            "No validator contributor found to deactivate for peer_id: {}",
-                            peer_id
-                        );
+                if let Some(doc_key) = change.full_document {
+                    if let Ok(peer_id) = doc_key.get_str("peerid") {
+                        println!("peer_id deleted: {}", peer_id);
+                        let current_time = Utc::now().round_subsecs(0).to_string();
+                        let update_result = contributors_coll
+                            .update_one(
+                                doc! {"peer_id": peer_id},
+                                doc! {
+                                    "$set": { "deactive_date": current_time }
+                                },
+                            )
+                            .await?;
+                        
+                        if update_result.modified_count == 0 {
+                            eprintln!("No validator contributor found to deactivate for peer_id: {}", peer_id);
+                        }
                     }
                 }
             }
@@ -113,26 +110,23 @@ impl MongoDBWatcher {
                 }
             }
             mongodb::change_stream::event::OperationType::Delete => {
-                // For delete operations, we need to use pre_image to get the deleted document
-                if let Some(pre_image) = change.full_document_before_change {
-                    let peer_id = pre_image.get_str("addr").unwrap_or_default();
-                    let current_time = Utc::now().round_subsecs(0).to_string();
-                    let update_result = contributors_coll
-                        .update_one(
-                            doc! {
-                                "peer_id": peer_id,
-                            },
-                            doc! {
-                                "$set": { "deactive_date": current_time }
-                            },
-                        )
-                        .await?;
-
-                    if update_result.modified_count == 0 {
-                        eprintln!(
-                            "No relay contributor found to deactivate for peer_id: {}",
-                            peer_id
-                        );
+                if let Some(doc_key) = change.full_document {
+                    if let Ok(peer_id) = doc_key.get_str("addr") {
+                        let current_time = Utc::now().round_subsecs(0).to_string();
+                        let update_result = contributors_coll
+                            .update_one(
+                                doc! {
+                                    "peer_id": peer_id,
+                                },
+                                doc! {
+                                    "$set": { "deactive_date": current_time }
+                                },
+                            )
+                            .await?;
+                        
+                        if update_result.modified_count == 0 {
+                            eprintln!("No relay contributor found to deactivate for peer_id: {}", peer_id);
+                        }
                     }
                 }
             }
@@ -148,9 +142,6 @@ impl MongoDBWatcher {
 
         let options = ChangeStreamOptions::builder()
             .full_document(Some(mongodb::options::FullDocumentType::UpdateLookup))
-            .full_document_before_change(Some(
-                mongodb::options::FullDocumentBeforeChangeType::Required,
-            ))
             .build();
 
         let mut validators_stream = validators_coll
