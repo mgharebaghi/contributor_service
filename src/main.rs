@@ -47,13 +47,14 @@ impl MongoDBWatcher {
                     let wallet = doc.get_str("wallet").unwrap_or_default().to_string();
                     let peer_id = if let Some(doc_key) = &change.document_key {
                         println!("doc_key: {:?}", doc_key);
-                        match doc_key.get_str("_id") {
-                            Ok(id) => {
-                                println!("Found _id: {}", id);
+                        // Try to get _id as ObjectId first, then convert to string
+                        match doc_key.get("_id") {
+                            Some(id) => {
+                                println!("Found _id: {:?}", id);
                                 id.to_string()
                             },
-                            Err(e) => {
-                                println!("Error getting _id: {:?}", e);
+                            None => {
+                                println!("No _id found in document_key");
                                 "".to_string()
                             }
                         }
