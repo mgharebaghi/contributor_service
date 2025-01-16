@@ -64,11 +64,7 @@ impl MongoDBWatcher {
                         let current_time = Utc::now().round_subsecs(0).to_string();
                         let update_result = contributors_coll
                             .update_one(
-                                doc! {
-                                    "peer_id": peer_id,
-                                    "node_type": "validator",
-                                    "deactive_date": null
-                                },
+                                doc! {"peer_id": peer_id},
                                 doc! {
                                     "$set": { "deactive_date": current_time }
                                 },
@@ -119,8 +115,6 @@ impl MongoDBWatcher {
                             .update_one(
                                 doc! {
                                     "peer_id": peer_id,
-                                    "node_type": "relay",
-                                    "deactive_date": null
                                 },
                                 doc! {
                                     "$set": { "deactive_date": current_time }
