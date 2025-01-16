@@ -79,12 +79,12 @@ impl MongoDBWatcher {
             mongodb::change_stream::event::OperationType::Delete => {
                 println!("Delete operation");
                 if let Some(doc_key) = change.document_key {
-                    if let Ok(peer_id) = doc_key.get_str("_id") {
-                        println!("peer_id deleted: {}", peer_id);
+                    if let Some(peer_id) = doc_key.get("_id") {
+                        println!("peer_id deleted: {}", peer_id.to_string());
                         let current_time = Utc::now().round_subsecs(0).to_string();
                         let update_result = contributors_coll
                             .update_one(
-                                doc! {"peer_id": peer_id},
+                                doc! {"peer_id": peer_id.to_string()},
                                 doc! {
                                     "$set": { "deactive_date": current_time }
                                 },
