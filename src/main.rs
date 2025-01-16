@@ -51,6 +51,8 @@ impl MongoDBWatcher {
                         doc.get_str("peerid").unwrap_or_default().to_string()
                     };
 
+                    println!("peer_id inserted: {}", peer_id);
+
                     let new_contributor = Contributor {
                         peer_id,
                         wallet,
