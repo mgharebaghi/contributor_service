@@ -45,7 +45,11 @@ impl MongoDBWatcher {
             mongodb::change_stream::event::OperationType::Insert => {
                 if let Some(doc) = change.full_document {
                     let wallet = doc.get_str("wallet").unwrap_or_default().to_string();
-                    let peer_id = doc.get_str("peerid").unwrap_or_default().to_string();
+                    let peer_id = if let Some(doc_key) = &change.document_key {
+                        doc_key.get_str("_id").unwrap_or_default().to_string()
+                    } else {
+                        doc.get_str("peerid").unwrap_or_default().to_string()
+                    };
 
                     let new_contributor = Contributor {
                         peer_id,
@@ -59,11 +63,8 @@ impl MongoDBWatcher {
                 }
             }
             mongodb::change_stream::event::OperationType::Delete => {
-                println!("Delete operation");
                 if let Some(doc_key) = change.document_key {
-                    println!("doc_key: {:?}", doc_key);
-                    if let Ok(peer_id) = doc_key.get_str("peerid") {
-                        println!("peer_id deleted: {}", peer_id);
+                    if let Ok(peer_id) = doc_key.get_str("_id") {
                         let current_time = Utc::now().round_subsecs(0).to_string();
                         let update_result = contributors_coll
                             .update_one(
@@ -97,7 +98,11 @@ impl MongoDBWatcher {
             mongodb::change_stream::event::OperationType::Insert => {
                 if let Some(doc) = change.full_document {
                     let wallet = doc.get_str("wallet").unwrap_or_default().to_string();
-                    let peer_id = doc.get_str("addr").unwrap_or_default().to_string();
+                    let peer_id = if let Some(doc_key) = &change.document_key {
+                        doc_key.get_str("_id").unwrap_or_default().to_string()
+                    } else {
+                        doc.get_str("addr").unwrap_or_default().to_string()
+                    };
 
                     let new_contributor = Contributor {
                         peer_id,
@@ -112,7 +117,7 @@ impl MongoDBWatcher {
             }
             mongodb::change_stream::event::OperationType::Delete => {
                 if let Some(doc_key) = change.document_key {
-                    if let Ok(peer_id) = doc_key.get_str("addr") {
+                    if let Ok(peer_id) = doc_key.get_str("_id") {
                         let current_time = Utc::now().round_subsecs(0).to_string();
                         let update_result = contributors_coll
                             .update_one(
