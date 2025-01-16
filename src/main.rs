@@ -45,7 +45,12 @@ impl MongoDBWatcher {
             mongodb::change_stream::event::OperationType::Insert => {
                 if let Some(doc) = change.full_document {
                     let wallet = doc.get_str("wallet").unwrap_or_default().to_string();
-                    let peer_id = doc.get_str("_id").unwrap_or_default().to_string();
+                    let peer_id = if let Some(doc_key) = &change.document_key {
+                        println!("doc_key: {:?}", doc_key);
+                        doc_key.get_str("_id").unwrap_or_default().to_string()
+                    } else {
+                        "".to_string()
+                    };
 
                     println!("peer_id inserted: {}", peer_id);
 
