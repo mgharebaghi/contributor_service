@@ -60,7 +60,7 @@ impl MongoDBWatcher {
             }
             mongodb::change_stream::event::OperationType::Delete => {
                 println!("Delete operation");
-                if let Some(doc_key) = change.full_document_before_change {
+                if let Some(doc_key) = change.document_key {
                     if let Ok(peer_id) = doc_key.get_str("peerid") {
                         println!("peer_id deleted: {}", peer_id);
                         let current_time = Utc::now().round_subsecs(0).to_string();
@@ -110,7 +110,7 @@ impl MongoDBWatcher {
                 }
             }
             mongodb::change_stream::event::OperationType::Delete => {
-                if let Some(doc_key) = change.full_document {
+                if let Some(doc_key) = change.document_key {
                     if let Ok(peer_id) = doc_key.get_str("addr") {
                         let current_time = Utc::now().round_subsecs(0).to_string();
                         let update_result = contributors_coll
