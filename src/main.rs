@@ -58,17 +58,23 @@ impl MongoDBWatcher {
             mongodb::change_stream::event::OperationType::Delete => {
                 if let Some(doc_key) = change.document_key {
                     if let Ok(wallet) = doc_key.get_str("wallet") {
-                        contributors_coll
-                            .update_many(
+                        let current_time = Utc::now().round_subsecs(0).to_string();
+                        let update_result = contributors_coll
+                            .update_one(
                                 doc! {
                                     "wallet": wallet,
-                                    "node_type": "validator"
+                                    "node_type": "validator",
+                                    "deactive_date": null
                                 },
                                 doc! {
-                                    "$set": { "deactive_date": Utc::now().round_subsecs(0).to_string() }
+                                    "$set": { "deactive_date": current_time }
                                 },
                             )
                             .await?;
+                        
+                        if update_result.modified_count == 0 {
+                            eprintln!("No validator contributor found to deactivate for wallet: {}", wallet);
+                        }
                     }
                 }
             }
@@ -103,17 +109,23 @@ impl MongoDBWatcher {
             mongodb::change_stream::event::OperationType::Delete => {
                 if let Some(doc_key) = change.document_key {
                     if let Ok(wallet) = doc_key.get_str("wallet") {
-                        contributors_coll
-                            .update_many(
+                        let current_time = Utc::now().round_subsecs(0).to_string();
+                        let update_result = contributors_coll
+                            .update_one(
                                 doc! {
                                     "wallet": wallet,
-                                    "node_type": "relay"
+                                    "node_type": "relay",
+                                    "deactive_date": null
                                 },
                                 doc! {
-                                    "$set": { "deactive_date": Utc::now().round_subsecs(0).to_string() }
+                                    "$set": { "deactive_date": current_time }
                                 },
                             )
                             .await?;
+                        
+                        if update_result.modified_count == 0 {
+                            eprintln!("No relay contributor found to deactivate for wallet: {}", wallet);
+                        }
                     }
                 }
             }
