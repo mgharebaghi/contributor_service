@@ -46,24 +46,18 @@ impl MongoDBWatcher {
                 if let Some(doc) = change.full_document {
                     let wallet = doc.get_str("wallet").unwrap_or_default().to_string();
                     let peer_id = if let Some(doc_key) = &change.document_key {
-                        println!("doc_key: {:?}", doc_key);
                         // Try to get _id as ObjectId first, then convert to string
                         match doc_key.get("_id") {
                             Some(id) => {
-                                println!("Found _id: {:?}", id);
                                 id.to_string()
                             },
                             None => {
-                                println!("No _id found in document_key");
                                 "".to_string()
                             }
                         }
                     } else {
-                        println!("No document_key found");
                         "".to_string()
                     };
-
-                    println!("peer_id inserted: {}", peer_id);
 
                     let new_contributor = Contributor {
                         peer_id,
@@ -77,10 +71,8 @@ impl MongoDBWatcher {
                 }
             }
             mongodb::change_stream::event::OperationType::Delete => {
-                println!("Delete operation");
                 if let Some(doc_key) = change.document_key {
                     if let Some(peer_id) = doc_key.get("_id") {
-                        println!("peer_id deleted: {}", peer_id.to_string());
                         let current_time = Utc::now().round_subsecs(0).to_string();
                         let update_result = contributors_coll
                             .update_one(
@@ -115,9 +107,17 @@ impl MongoDBWatcher {
                 if let Some(doc) = change.full_document {
                     let wallet = doc.get_str("wallet").unwrap_or_default().to_string();
                     let peer_id = if let Some(doc_key) = &change.document_key {
-                        doc_key.get_str("_id").unwrap_or_default().to_string()
+                        // Try to get _id as ObjectId first, then convert to string
+                        match doc_key.get("_id") {
+                            Some(id) => {
+                                id.to_string()
+                            },
+                            None => {
+                                "".to_string()
+                            }
+                        }
                     } else {
-                        doc.get_str("addr").unwrap_or_default().to_string()
+                        "".to_string()
                     };
 
                     let new_contributor = Contributor {
@@ -133,12 +133,12 @@ impl MongoDBWatcher {
             }
             mongodb::change_stream::event::OperationType::Delete => {
                 if let Some(doc_key) = change.document_key {
-                    if let Ok(peer_id) = doc_key.get_str("_id") {
+                    if let Some(peer_id) = doc_key.get("_id") {
                         let current_time = Utc::now().round_subsecs(0).to_string();
                         let update_result = contributors_coll
                             .update_one(
                                 doc! {
-                                    "peer_id": peer_id,
+                                    "peer_id": peer_id.to_string(),
                                 },
                                 doc! {
                                     "$set": { "deactive_date": current_time }
