@@ -11,10 +11,11 @@ use std::error::Error;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Contributor {
+    peer_id: String,
     wallet: String,
     node_type: String,
     join_date: String,
-    deactive_date: Option<String>,
+    deactive_date: String,
 }
 
 struct MongoDBWatcher {
@@ -44,12 +45,14 @@ impl MongoDBWatcher {
             mongodb::change_stream::event::OperationType::Insert => {
                 if let Some(doc) = change.full_document {
                     let wallet = doc.get_str("wallet").unwrap_or_default().to_string();
+                    let peer_id = doc.get_str("peerid").unwrap_or_default().to_string();
 
                     let new_contributor = Contributor {
+                        peer_id,
                         wallet,
                         node_type: "validator".to_string(),
                         join_date: Utc::now().round_subsecs(0).to_string(),
-                        deactive_date: None,
+                        deactive_date: "".to_string(),
                     };
 
                     contributors_coll.insert_one(new_contributor).await?;
@@ -57,12 +60,12 @@ impl MongoDBWatcher {
             }
             mongodb::change_stream::event::OperationType::Delete => {
                 if let Some(doc_key) = change.document_key {
-                    if let Ok(wallet) = doc_key.get_str("wallet") {
+                    if let Ok(peer_id) = doc_key.get_str("peerid") {
                         let current_time = Utc::now().round_subsecs(0).to_string();
                         let update_result = contributors_coll
                             .update_one(
                                 doc! {
-                                    "wallet": wallet,
+                                    "peer_id": peer_id,
                                     "node_type": "validator",
                                     "deactive_date": null
                                 },
@@ -73,7 +76,7 @@ impl MongoDBWatcher {
                             .await?;
                         
                         if update_result.modified_count == 0 {
-                            eprintln!("No validator contributor found to deactivate for wallet: {}", wallet);
+                            eprintln!("No validator contributor found to deactivate for peer_id: {}", peer_id);
                         }
                     }
                 }
@@ -95,12 +98,14 @@ impl MongoDBWatcher {
             mongodb::change_stream::event::OperationType::Insert => {
                 if let Some(doc) = change.full_document {
                     let wallet = doc.get_str("wallet").unwrap_or_default().to_string();
+                    let peer_id = doc.get_str("addr").unwrap_or_default().to_string();
 
                     let new_contributor = Contributor {
+                        peer_id,
                         wallet,
                         node_type: "relay".to_string(),
                         join_date: Utc::now().round_subsecs(0).to_string(),
-                        deactive_date: None,
+                        deactive_date: "".to_string(),
                     };
 
                     contributors_coll.insert_one(new_contributor).await?;
@@ -108,12 +113,12 @@ impl MongoDBWatcher {
             }
             mongodb::change_stream::event::OperationType::Delete => {
                 if let Some(doc_key) = change.document_key {
-                    if let Ok(wallet) = doc_key.get_str("wallet") {
+                    if let Ok(peer_id) = doc_key.get_str("addr") {
                         let current_time = Utc::now().round_subsecs(0).to_string();
                         let update_result = contributors_coll
                             .update_one(
                                 doc! {
-                                    "wallet": wallet,
+                                    "peer_id": peer_id,
                                     "node_type": "relay",
                                     "deactive_date": null
                                 },
@@ -124,7 +129,7 @@ impl MongoDBWatcher {
                             .await?;
                         
                         if update_result.modified_count == 0 {
-                            eprintln!("No relay contributor found to deactivate for wallet: {}", wallet);
+                            eprintln!("No relay contributor found to deactivate for peer_id: {}", peer_id);
                         }
                     }
                 }
