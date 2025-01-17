@@ -215,30 +215,48 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         let mut transaction_task: Option<tokio::task::JoinHandle<()>> = None;
 
-        let mut validator_stream = validators_coll.watch().with_options(options).await.unwrap();
+        // Check initial validator count and start transactions if > 0
+        let initial_count = validators_coll.count_documents(doc! {}).await.unwrap_or(0);
+        if initial_count > 0 {
+            // Spawn in a separate task so it doesn't block
+            transaction_task = Some(tokio::spawn(async {
+                make_trx::make().await;
+            }));
+            println!("Started transaction sending");
+        }
 
-        while let Some(Ok(change)) = validator_stream.next().await {
-            match change.operation_type {
-                mongodb::change_stream::event::OperationType::Delete => {
-                    let count = validators_coll.count_documents(doc! {}).await.unwrap_or(0);
-                    if count == 0 {
-                        if let Some(handle) = transaction_task.take() {
-                            handle.abort();
-                            println!("Stopped transaction sending - no validators");
+        // Watch for changes in a separate task
+        let watch_task = tokio::spawn(async move {
+            let mut validator_stream = validators_coll.watch().with_options(options).await.unwrap();
+            
+            while let Some(Ok(change)) = validator_stream.next().await {
+                match change.operation_type {
+                    mongodb::change_stream::event::OperationType::Delete => {
+                        let count = validators_coll.count_documents(doc! {}).await.unwrap_or(0);
+                        if count == 0 {
+                            if let Some(handle) = transaction_task.take() {
+                                handle.abort();
+                                println!("Stopped transaction sending - no validators");
+                            }
                         }
                     }
-                }
-                mongodb::change_stream::event::OperationType::Insert => {
-                    let count = validators_coll.count_documents(doc! {}).await.unwrap_or(0);
-                    if count > 0 && transaction_task.is_none() {
-                        transaction_task = Some(tokio::spawn(async {
-                            make_trx::make().await;
-                        }));
-                        println!("Started transaction sending");
+                    mongodb::change_stream::event::OperationType::Insert => {
+                        let count = validators_coll.count_documents(doc! {}).await.unwrap_or(0);
+                        if count > 0 && transaction_task.is_none() {
+                            transaction_task = Some(tokio::spawn(async {
+                                make_trx::make().await;
+                            }));
+                            println!("Started transaction sending");
+                        }
                     }
+                    _ => {}
                 }
-                _ => {}
             }
+        });
+
+        // Wait for the watch task to complete
+        if let Err(e) = watch_task.await {
+            eprintln!("Error in validator watch task: {}", e);
         }
     });
 
