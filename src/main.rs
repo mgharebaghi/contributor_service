@@ -49,12 +49,8 @@ impl MongoDBWatcher {
                     let peer_id = if let Some(doc_key) = &change.document_key {
                         // Try to get _id as ObjectId first, then convert to string
                         match doc_key.get("_id") {
-                            Some(id) => {
-                                id.to_string()
-                            },
-                            None => {
-                                "".to_string()
-                            }
+                            Some(id) => id.to_string(),
+                            None => "".to_string(),
                         }
                     } else {
                         "".to_string()
@@ -83,9 +79,12 @@ impl MongoDBWatcher {
                                 },
                             )
                             .await?;
-                        
+
                         if update_result.modified_count == 0 {
-                            eprintln!("No validator contributor found to deactivate for peer_id: {}", peer_id);
+                            eprintln!(
+                                "No validator contributor found to deactivate for peer_id: {}",
+                                peer_id
+                            );
                         }
                     }
                 }
@@ -110,12 +109,8 @@ impl MongoDBWatcher {
                     let peer_id = if let Some(doc_key) = &change.document_key {
                         // Try to get _id as ObjectId first, then convert to string
                         match doc_key.get("_id") {
-                            Some(id) => {
-                                id.to_string()
-                            },
-                            None => {
-                                "".to_string()
-                            }
+                            Some(id) => id.to_string(),
+                            None => "".to_string(),
                         }
                     } else {
                         "".to_string()
@@ -146,9 +141,12 @@ impl MongoDBWatcher {
                                 },
                             )
                             .await?;
-                        
+
                         if update_result.modified_count == 0 {
-                            eprintln!("No relay contributor found to deactivate for peer_id: {}", peer_id);
+                            eprintln!(
+                                "No relay contributor found to deactivate for peer_id: {}",
+                                peer_id
+                            );
                         }
                     }
                 }
@@ -197,18 +195,51 @@ impl MongoDBWatcher {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let client = Client::with_uri_str("mongodb://localhost:27017").await?;
-    let watcher = MongoDBWatcher::new(client).await;
+    let watcher = MongoDBWatcher::new(client.clone()).await;
 
     println!("Starting MongoDB watcher...");
-    
+
     let watcher_handle = tokio::spawn(async move {
         if let Err(e) = watcher.watch_collections().await {
             eprintln!("Error in watcher: {}", e);
         }
     });
 
-    let transaction_handle = tokio::spawn(async {
-        make_trx::make().await;
+    let client_clone = client.clone();
+    let transaction_handle = tokio::spawn(async move {
+        let centichain_db = client_clone.database("Centichain");
+        let validators_coll = centichain_db.collection::<Document>("validators");
+        let options = ChangeStreamOptions::builder()
+            .full_document(Some(mongodb::options::FullDocumentType::UpdateLookup))
+            .build();
+
+        let mut transaction_task: Option<tokio::task::JoinHandle<()>> = None;
+
+        let mut validator_stream = validators_coll.watch().with_options(options).await.unwrap();
+
+        while let Some(Ok(change)) = validator_stream.next().await {
+            match change.operation_type {
+                mongodb::change_stream::event::OperationType::Delete => {
+                    let count = validators_coll.count_documents(doc! {}).await.unwrap_or(0);
+                    if count == 0 {
+                        if let Some(handle) = transaction_task.take() {
+                            handle.abort();
+                            println!("Stopped transaction sending - no validators");
+                        }
+                    }
+                }
+                mongodb::change_stream::event::OperationType::Insert => {
+                    let count = validators_coll.count_documents(doc! {}).await.unwrap_or(0);
+                    if count > 0 && transaction_task.is_none() {
+                        transaction_task = Some(tokio::spawn(async {
+                            make_trx::make().await;
+                        }));
+                        println!("Started transaction sending");
+                    }
+                }
+                _ => {}
+            }
+        }
     });
 
     let _ = tokio::join!(watcher_handle, transaction_handle);

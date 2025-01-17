@@ -2,6 +2,7 @@ use cc_transaction::Transaction;
 use rand;
 
 pub async fn make() {
+    eprintln!("Starting transaction");
     let wallet = "5FAGvcnSCa4hvh5YbWxecDCz1weEjttgBYbLK4RcABJX1nD1".to_string();
     let private_key = "belt reason ten attitude panda music aim grass accuse calm wing ocean used arrest cushion avocado expose tourist camera fly security muffin critic patient".to_string();
     let recipient = "5Fo2ocSQ7hZsi7GkFhdtmTmkaewsiDX3u1TmMaJvNHUPKL5f".to_string();
