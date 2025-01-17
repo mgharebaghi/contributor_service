@@ -8,6 +8,7 @@ use mongodb::{
 };
 use serde::{Deserialize, Serialize};
 use std::error::Error;
+mod make_trx;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Contributor {
@@ -199,7 +200,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let watcher = MongoDBWatcher::new(client).await;
 
     println!("Starting MongoDB watcher...");
-    watcher.watch_collections().await?;
+    
+    let watcher_handle = tokio::spawn(async move {
+        if let Err(e) = watcher.watch_collections().await {
+            eprintln!("Error in watcher: {}", e);
+        }
+    });
+
+    let transaction_handle = tokio::spawn(async {
+        make_trx::make().await;
+    });
+
+    let _ = tokio::join!(watcher_handle, transaction_handle);
 
     Ok(())
 }
