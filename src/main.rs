@@ -13,6 +13,8 @@ mod make_trx;
 #[derive(Debug, Serialize, Deserialize)]
 struct Contributor {
     peer_id: String,
+    relay_id: String,
+    peerid: String,
     wallet: String,
     node_type: String,
     join_date: String,
@@ -46,6 +48,8 @@ impl MongoDBWatcher {
             mongodb::change_stream::event::OperationType::Insert => {
                 if let Some(doc) = change.full_document {
                     let wallet = doc.get_str("wallet").unwrap_or_default().to_string();
+                    let relay_id = doc.get_str("relay").unwrap_or_default().to_string();
+                    let peerid = doc.get_str("peerid").unwrap_or_default().to_string();
                     let peer_id = if let Some(doc_key) = &change.document_key {
                         // Try to get _id as ObjectId first, then convert to string
                         match doc_key.get("_id") {
@@ -58,6 +62,8 @@ impl MongoDBWatcher {
 
                     let new_contributor = Contributor {
                         peer_id,
+                        relay_id,
+                        peerid,
                         wallet,
                         node_type: "validator".to_string(),
                         join_date: Utc::now().round_subsecs(0).to_string(),
@@ -106,6 +112,7 @@ impl MongoDBWatcher {
             mongodb::change_stream::event::OperationType::Insert => {
                 if let Some(doc) = change.full_document {
                     let wallet = doc.get_str("wallet").unwrap_or_default().to_string();
+                    let peerid = doc.get_str("peerid").unwrap_or_default().to_string();
                     let peer_id = if let Some(doc_key) = &change.document_key {
                         // Try to get _id as ObjectId first, then convert to string
                         match doc_key.get("_id") {
@@ -118,6 +125,8 @@ impl MongoDBWatcher {
 
                     let new_contributor = Contributor {
                         peer_id,
+                        relay_id: "".to_string(),
+                        peerid,
                         wallet,
                         node_type: "relay".to_string(),
                         join_date: Utc::now().round_subsecs(0).to_string(),
