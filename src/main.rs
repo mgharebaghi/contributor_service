@@ -58,8 +58,8 @@ impl MongoDBWatcher {
                 }
             }
             mongodb::change_stream::event::OperationType::Delete => {
-                if let Some(doc_key) = change.document_key {
-                    if let Ok(peerid) = doc_key.get_str("peerid") {
+                if let Some(doc) = change.full_document {
+                    if let Ok(peerid) = doc.get_str("peerid") {
                         let delete_result = contributors_coll
                             .delete_one(doc! {"peerid": peerid.to_string()})
                             .await?;
@@ -103,22 +103,17 @@ impl MongoDBWatcher {
                 }
             }
             mongodb::change_stream::event::OperationType::Delete => {
-                if let Some(doc_key) = change.document_key {
-                    if let Some(_peerid) = doc_key.get("peerid") {
-                        // First find the document to get its peerid
-                        if let Some(doc) = change.full_document {
-                            if let Ok(peerid) = doc.get_str("peerid") {
-                                let delete_result = contributors_coll
-                                    .delete_one(doc! {"peerid": peerid.to_string()})
-                                    .await?;
+                if let Some(doc) = change.full_document {
+                    if let Ok(peerid) = doc.get_str("peerid") {
+                        let delete_result = contributors_coll
+                            .delete_one(doc! {"peerid": peerid.to_string()})
+                            .await?;
 
-                                if delete_result.deleted_count == 0 {
-                                    eprintln!(
-                                        "No relay contributor found to delete for peerid: {}",
-                                        peerid
-                                    );
-                                }
-                            }
+                        if delete_result.deleted_count == 0 {
+                            eprintln!(
+                                "No relay contributor found to delete for peerid: {}",
+                                peerid
+                            );
                         }
                     }
                 }
