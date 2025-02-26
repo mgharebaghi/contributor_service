@@ -12,13 +12,10 @@ mod make_trx;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Contributor {
-    peer_id: String,
-    relay_id: String,
     peerid: String,
     wallet: String,
     node_type: String,
     join_date: String,
-    deactive_date: String,
 }
 
 struct MongoDBWatcher {
@@ -48,26 +45,13 @@ impl MongoDBWatcher {
             mongodb::change_stream::event::OperationType::Insert => {
                 if let Some(doc) = change.full_document {
                     let wallet = doc.get_str("wallet").unwrap_or_default().to_string();
-                    let relay_id = doc.get_str("relay").unwrap_or_default().to_string();
                     let peerid = doc.get_str("peerid").unwrap_or_default().to_string();
-                    let peer_id = if let Some(doc_key) = &change.document_key {
-                        // Try to get _id as ObjectId first, then convert to string
-                        match doc_key.get("_id") {
-                            Some(id) => id.to_string(),
-                            None => "".to_string(),
-                        }
-                    } else {
-                        "".to_string()
-                    };
 
                     let new_contributor = Contributor {
-                        peer_id,
-                        relay_id,
                         peerid,
                         wallet,
                         node_type: "validator".to_string(),
                         join_date: Utc::now().round_subsecs(0).to_string(),
-                        deactive_date: "".to_string(),
                     };
 
                     contributors_coll.insert_one(new_contributor).await?;
@@ -75,22 +59,21 @@ impl MongoDBWatcher {
             }
             mongodb::change_stream::event::OperationType::Delete => {
                 if let Some(doc_key) = change.document_key {
-                    if let Some(peer_id) = doc_key.get("_id") {
-                        let current_time = Utc::now().round_subsecs(0).to_string();
-                        let update_result = contributors_coll
-                            .update_one(
-                                doc! {"peer_id": peer_id.to_string()},
-                                doc! {
-                                    "$set": { "deactive_date": current_time }
-                                },
-                            )
-                            .await?;
+                    if let Some(_id) = doc_key.get("peerid") {
+                        // First find the document to get its peerid
+                        if let Some(doc) = change.full_document {
+                            if let Ok(peerid) = doc.get_str("peerid") {
+                                let delete_result = contributors_coll
+                                    .delete_one(doc! {"peerid": peerid.to_string()})
+                                    .await?;
 
-                        if update_result.modified_count == 0 {
-                            eprintln!(
-                                "No validator contributor found to deactivate for peer_id: {}",
-                                peer_id
-                            );
+                                if delete_result.deleted_count == 0 {
+                                    eprintln!(
+                                        "No validator contributor found to delete for peerid: {}",
+                                        peerid
+                                    );
+                                }
+                            }
                         }
                     }
                 }
@@ -113,24 +96,12 @@ impl MongoDBWatcher {
                 if let Some(doc) = change.full_document {
                     let wallet = doc.get_str("wallet").unwrap_or_default().to_string();
                     let peerid = doc.get_str("peerid").unwrap_or_default().to_string();
-                    let peer_id = if let Some(doc_key) = &change.document_key {
-                        // Try to get _id as ObjectId first, then convert to string
-                        match doc_key.get("_id") {
-                            Some(id) => id.to_string(),
-                            None => "".to_string(),
-                        }
-                    } else {
-                        "".to_string()
-                    };
 
                     let new_contributor = Contributor {
-                        peer_id,
-                        relay_id: "".to_string(),
                         peerid,
                         wallet,
                         node_type: "relay".to_string(),
                         join_date: Utc::now().round_subsecs(0).to_string(),
-                        deactive_date: "".to_string(),
                     };
 
                     contributors_coll.insert_one(new_contributor).await?;
@@ -138,24 +109,21 @@ impl MongoDBWatcher {
             }
             mongodb::change_stream::event::OperationType::Delete => {
                 if let Some(doc_key) = change.document_key {
-                    if let Some(peer_id) = doc_key.get("_id") {
-                        let current_time = Utc::now().round_subsecs(0).to_string();
-                        let update_result = contributors_coll
-                            .update_one(
-                                doc! {
-                                    "peer_id": peer_id.to_string(),
-                                },
-                                doc! {
-                                    "$set": { "deactive_date": current_time }
-                                },
-                            )
-                            .await?;
+                    if let Some(_peerid) = doc_key.get("peerid") {
+                        // First find the document to get its peerid
+                        if let Some(doc) = change.full_document {
+                            if let Ok(peerid) = doc.get_str("peerid") {
+                                let delete_result = contributors_coll
+                                    .delete_one(doc! {"peerid": peerid.to_string()})
+                                    .await?;
 
-                        if update_result.modified_count == 0 {
-                            eprintln!(
-                                "No relay contributor found to deactivate for peer_id: {}",
-                                peer_id
-                            );
+                                if delete_result.deleted_count == 0 {
+                                    eprintln!(
+                                        "No relay contributor found to delete for peerid: {}",
+                                        peerid
+                                    );
+                                }
+                            }
                         }
                     }
                 }
@@ -237,7 +205,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // Watch for changes in a separate task
         let watch_task = tokio::spawn(async move {
             let mut validator_stream = validators_coll.watch().with_options(options).await.unwrap();
-            
+
             while let Some(Ok(change)) = validator_stream.next().await {
                 match change.operation_type {
                     mongodb::change_stream::event::OperationType::Delete => {
