@@ -58,7 +58,7 @@ impl MongoDBWatcher {
                 }
             }
             mongodb::change_stream::event::OperationType::Delete => {
-                if let Some(doc) = change.document_key {
+                if let Some(doc) = change.full_document_before_change {
                     if let Ok(peerid) = doc.get_str("peerid") {
                         let delete_result = contributors_coll
                             .delete_one(doc! {"peerid": peerid.to_string()})
@@ -103,16 +103,16 @@ impl MongoDBWatcher {
                 }
             }
             mongodb::change_stream::event::OperationType::Delete => {
-                if let Some(doc) = change.document_key {
-                    if let Ok(peerid) = doc.get_str("peerid") {
+                if let Some(doc) = change.full_document_before_change {
+                    if let Ok(addr) = doc.get_str("addr") {
                         let delete_result = contributors_coll
-                            .delete_one(doc! {"peerid": peerid.to_string()})
+                            .delete_one(doc! {"peerid": addr.to_string()})
                             .await?;
 
                         if delete_result.deleted_count == 0 {
                             eprintln!(
                                 "No relay contributor found to delete for peerid: {}",
-                                peerid
+                                addr
                             );
                         }
                     }
@@ -130,6 +130,7 @@ impl MongoDBWatcher {
 
         let options = ChangeStreamOptions::builder()
             .full_document(Some(mongodb::options::FullDocumentType::UpdateLookup))
+            .full_document_before_change(Some(mongodb::options::FullDocumentBeforeChangeType::Required))
             .build();
 
         let mut validators_stream = validators_coll
@@ -178,6 +179,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let validators_coll = centichain_db.collection::<Document>("validators");
         let options = ChangeStreamOptions::builder()
             .full_document(Some(mongodb::options::FullDocumentType::UpdateLookup))
+            .full_document_before_change(Some(mongodb::options::FullDocumentBeforeChangeType::Required))
             .build();
 
         let mut transaction_task: Option<tokio::task::JoinHandle<()>> = None;
