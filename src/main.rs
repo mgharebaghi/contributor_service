@@ -58,7 +58,7 @@ impl MongoDBWatcher {
                 }
             }
             mongodb::change_stream::event::OperationType::Delete => {
-                if let Some(doc) = change.full_document {
+                if let Some(doc) = change.document_key {
                     if let Ok(peerid) = doc.get_str("peerid") {
                         let delete_result = contributors_coll
                             .delete_one(doc! {"peerid": peerid.to_string()})
@@ -103,7 +103,7 @@ impl MongoDBWatcher {
                 }
             }
             mongodb::change_stream::event::OperationType::Delete => {
-                if let Some(doc) = change.full_document {
+                if let Some(doc) = change.document_key {
                     if let Ok(peerid) = doc.get_str("peerid") {
                         let delete_result = contributors_coll
                             .delete_one(doc! {"peerid": peerid.to_string()})
