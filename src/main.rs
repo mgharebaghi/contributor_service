@@ -110,10 +110,7 @@ impl MongoDBWatcher {
                             .await?;
 
                         if delete_result.deleted_count == 0 {
-                            eprintln!(
-                                "No relay contributor found to delete for peerid: {}",
-                                addr
-                            );
+                            eprintln!("No relay contributor found to delete for peerid: {}", addr);
                         }
                     }
                 }
@@ -130,7 +127,9 @@ impl MongoDBWatcher {
 
         let options = ChangeStreamOptions::builder()
             .full_document(Some(mongodb::options::FullDocumentType::UpdateLookup))
-            .full_document_before_change(Some(mongodb::options::FullDocumentBeforeChangeType::Required))
+            .full_document_before_change(Some(
+                mongodb::options::FullDocumentBeforeChangeType::Required,
+            ))
             .build();
 
         let mut validators_stream = validators_coll
@@ -142,21 +141,42 @@ impl MongoDBWatcher {
         loop {
             tokio::select! {
                 Some(validator_change) = validators_stream.next() => {
-                    if let Ok(change) = validator_change {
-                        if let Err(e) = self.process_validator_change(change).await {
-                            eprintln!("Error processing validator change: {}", e);
+                    match validator_change {
+                        Ok(change) => {
+                            if let Err(e) = self.process_validator_change(change).await {
+                                eprintln!("Error processing validator change: {}", e);
+                            }
+                        },
+                        Err(e) => {
+                            eprintln!("Error in validator stream: {}", e);
+                            // Add a small delay to prevent tight loop on errors
+                            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                         }
                     }
                 }
                 Some(relay_change) = relays_stream.next() => {
-                    if let Ok(change) = relay_change {
-                        if let Err(e) = self.process_relay_change(change).await {
-                            eprintln!("Error processing relay change: {}", e);
+                    match relay_change {
+                        Ok(change) => {
+                            if let Err(e) = self.process_relay_change(change).await {
+                                eprintln!("Error processing relay change: {}", e);
+                            }
+                        },
+                        Err(e) => {
+                            eprintln!("Error in relay stream: {}", e);
+                            // Add a small delay to prevent tight loop on errors
+                            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                         }
                     }
                 }
+                else => {
+                    // Add this else branch to handle the case when both streams are closed
+                    eprintln!("Both streams have ended");
+                    break;
+                }
             }
         }
+
+        Ok(())
     }
 }
 
@@ -179,7 +199,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let validators_coll = centichain_db.collection::<Document>("validators");
         let options = ChangeStreamOptions::builder()
             .full_document(Some(mongodb::options::FullDocumentType::UpdateLookup))
-            .full_document_before_change(Some(mongodb::options::FullDocumentBeforeChangeType::Required))
+            .full_document_before_change(Some(
+                mongodb::options::FullDocumentBeforeChangeType::Required,
+            ))
             .build();
 
         let mut transaction_task: Option<tokio::task::JoinHandle<()>> = None;
