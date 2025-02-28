@@ -1,8 +1,10 @@
+use futures::StreamExt;
 use mongodb::{
     bson::{doc, Document},
-    Client, Collection,
+    Client,
 };
 use std::error::Error;
+use tokio::time::{sleep, Duration};
 mod make_trx;
 
 #[tokio::main]
@@ -11,11 +13,33 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let centichain_db = client.database("Centichain");
     let validators_coll = centichain_db.collection::<Document>("validators");
 
-    // Check initial validator count and start transactions if > 0
-    let initial_count = validators_coll.count_documents(doc! {}).await.unwrap_or(0);
-    if initial_count > 0 {
-        println!("Started transaction sending");
-        make_trx::make().await;
+    let mut change_stream = validators_coll.watch().await?;
+
+    let mut is_running = false;
+
+    loop {
+        let count = validators_coll.count_documents(doc! {}).await.unwrap_or(0);
+
+        if count > 0 && !is_running {
+            println!("Starting transaction sending - Validator count: {}", count);
+            is_running = true;
+            tokio::spawn(make_trx::make());
+        } else if count == 0 && is_running {
+            println!("Stopping transaction sending - No validators");
+            is_running = false;
+        }
+
+        // Wait for next change or timeout
+        tokio::select! {
+            change = change_stream.next() => {
+                match change {
+                    Some(Ok(_)) => continue,
+                    Some(Err(e)) => println!("Error in change stream: {}", e),
+                    None => break,
+                }
+            }
+            _ = sleep(Duration::from_secs(10)) => continue,
+        }
     }
 
     Ok(())
