@@ -14,7 +14,8 @@ pub async fn make() {
 
     let handle1 = tokio::spawn(async move {
         loop {
-            let value = format!("{:.12}", rand::random::<f64>()).to_string();
+            let len = rand::random::<f64>() * 0.001;
+            let value = format!("{:.12}", len).to_string();
             match Transaction::make_and_send(
                 wallet.clone(),
                 private_key.clone(),
@@ -25,7 +26,7 @@ pub async fn make() {
             {
                 Ok(_tx) => {
                     tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
-                },
+                }
                 Err(e) => {
                     println!("Error in transaction 1: {}", e);
                     break;
@@ -36,7 +37,8 @@ pub async fn make() {
 
     let handle2 = tokio::spawn(async move {
         loop {
-            let value = format!("{:.12}", rand::random::<f64>()).to_string();
+            let len = rand::random::<f64>() * 0.001;
+            let value = format!("{:.12}", len).to_string();
             match Transaction::make_and_send(
                 wallet2.clone(),
                 private_key2.clone(),
@@ -47,7 +49,7 @@ pub async fn make() {
             {
                 Ok(_tx) => {
                     tokio::time::sleep(tokio::time::Duration::from_secs(36)).await;
-                },
+                }
                 Err(e) => {
                     println!("Error in transaction 2: {}", e);
                     break;
