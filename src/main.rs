@@ -21,6 +21,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let count = validators_coll.count_documents(doc! {}).await.unwrap_or(0);
 
         if count > 0 && !is_running {
+            tokio::time::sleep(Duration::from_secs(30)).await; // Wait for 5 seconds before starting
             println!("Starting transaction sending - Validator count: {}", count);
             is_running = true;
             tokio::spawn(make_trx::make());
@@ -38,7 +39,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     None => break,
                 }
             }
-            _ = sleep(Duration::from_secs(10)) => continue,
+            _ = sleep(Duration::from_secs(120)) => continue,
         }
     }
 
