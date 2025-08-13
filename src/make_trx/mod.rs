@@ -48,7 +48,7 @@ pub async fn make() {
             .await
             {
                 Ok(_tx) => {
-                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                    tokio::time::sleep(tokio::time::Duration::from_secs(500)).await;
                 }
                 Err(e) => {
                     println!("Error in transaction 2: {}", e);
