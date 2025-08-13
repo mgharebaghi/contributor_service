@@ -12,6 +12,11 @@ pub async fn make() {
 ".to_string();
     let recipient2 = "5GzD9joTTewLC5ZNLPnsC7SiTtS9FdoYEdSX5a6A9JmvUQG5".to_string();
 
+    let wallet3 = "5GzD9joTTewLC5ZNLPnsC7SiTtS9FdoYEdSX5a6A9JmvUQG5".to_string();
+    let private_key3 = "awake huge child trip pupil village shallow doctor home hunt audit device poverty quality hard violin swamp stick medal setup comfort dismiss hour scheme
+".to_string();
+    let recipient3 = "5FAGvcnSCa4hvh5YbWxecDCz1weEjttgBYbLK4RcABJX1nD1".to_string();
+
     let handle1 = tokio::spawn(async move {
         loop {
             let len = rand::random::<f64>() * 0.001;
@@ -58,5 +63,28 @@ pub async fn make() {
         }
     });
 
-    let _ = tokio::join!(handle1, handle2);
+    let handle3 = tokio::spawn(async move {
+        loop {
+            let len = rand::random::<f64>() * 0.001;
+            let value = format!("{:.12}", len).to_string();
+            match Transaction::make_and_send(
+                wallet3.clone(),
+                private_key3.clone(),
+                recipient3.clone(),
+                value.clone(),
+            )
+            .await
+            {
+                Ok(_tx) => {
+                    tokio::time::sleep(tokio::time::Duration::from_secs(500)).await;
+                }
+                Err(e) => {
+                    println!("Error in transaction 2: {}", e);
+                    break;
+                }
+            }
+        }
+    });
+
+    let _ = tokio::join!(handle1, handle2, handle3);
 }
