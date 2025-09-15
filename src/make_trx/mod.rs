@@ -35,7 +35,7 @@ pub async fn make() {
             .await
             {
                 Ok(_tx) => {
-                    tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+                    tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
                 }
                 Err(e) => {
                     println!("Error in transaction 1: {}", e);
@@ -58,7 +58,7 @@ pub async fn make() {
             .await
             {
                 Ok(_tx) => {
-                    tokio::time::sleep(tokio::time::Duration::from_millis(55)).await;
+                    tokio::time::sleep(tokio::time::Duration::from_millis(5005)).await;
                 }
                 Err(e) => {
                     println!("Error in transaction 2: {}", e);
@@ -81,7 +81,7 @@ pub async fn make() {
             .await
             {
                 Ok(_tx) => {
-                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                    tokio::time::sleep(tokio::time::Duration::from_millis(10000)).await;
                 }
                 Err(e) => {
                     println!("Error in transaction 3: {}", e);
@@ -104,7 +104,7 @@ pub async fn make() {
             .await
             {
                 Ok(_tx) => {
-                    tokio::time::sleep(tokio::time::Duration::from_millis(105)).await;
+                    tokio::time::sleep(tokio::time::Duration::from_millis(10005)).await;
                 }
                 Err(e) => {
                     println!("Error in transaction 4: {}", e);
