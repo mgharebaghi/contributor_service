@@ -17,6 +17,11 @@ pub async fn make() {
 ".to_string();
     let recipient3 = "5FAGvcnSCa4hvh5YbWxecDCz1weEjttgBYbLK4RcABJX1nD1".to_string();
 
+    let wallet4 = "5FAGvcnSCa4hvh5YbWxecDCz1weEjttgBYbLK4RcABJX1nD1".to_string();
+    let private_key4 = "belt reason ten attitude panda music aim grass accuse calm wing ocean used arrest cushion avocado expose tourist camera fly security muffin critic patient
+".to_string();
+    let recipient4 = "5GzD9joTTewLC5ZNLPnsC7SiTtS9FdoYEdSX5a6A9JmvUQG5".to_string();
+
     let handle1 = tokio::spawn(async move {
         loop {
             let len = rand::random::<f64>() * 0.001;
@@ -30,7 +35,7 @@ pub async fn make() {
             .await
             {
                 Ok(_tx) => {
-                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                    tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
                 }
                 Err(e) => {
                     println!("Error in transaction 1: {}", e);
@@ -53,7 +58,7 @@ pub async fn make() {
             .await
             {
                 Ok(_tx) => {
-                    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+                    tokio::time::sleep(tokio::time::Duration::from_millis(55)).await;
                 }
                 Err(e) => {
                     println!("Error in transaction 2: {}", e);
@@ -76,15 +81,38 @@ pub async fn make() {
             .await
             {
                 Ok(_tx) => {
-                    tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
+                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
                 }
                 Err(e) => {
-                    println!("Error in transaction 2: {}", e);
+                    println!("Error in transaction 3: {}", e);
                     break;
                 }
             }
         }
     });
 
-    let _ = tokio::join!(handle1, handle2, handle3);
+    let handle4 = tokio::spawn(async move {
+        loop {
+            let len = rand::random::<f64>() * 0.001;
+            let value = format!("{:.12}", len).to_string();
+            match Transaction::make_and_send(
+                wallet4.clone(),
+                private_key4.clone(),
+                recipient4.clone(),
+                value.clone(),
+            )
+            .await
+            {
+                Ok(_tx) => {
+                    tokio::time::sleep(tokio::time::Duration::from_millis(105)).await;
+                }
+                Err(e) => {
+                    println!("Error in transaction 4: {}", e);
+                    break;
+                }
+            }
+        }
+    });
+
+    let _ = tokio::join!(handle1, handle2, handle3, handle4);
 }
